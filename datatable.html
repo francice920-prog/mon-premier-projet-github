@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tableau des Produits</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #5d5e5e;
+    }
+    h2 { color: white; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+    }
+    th { background-color:burlywood; color: white; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    tfoot td {
+      font-weight: bold;
+      background-color: #e6f0ff;
+    }
+    input[type="number"], input[type="text"] {
+      width: 100px;
+      padding: 5px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { background-color: #218838; }
+    .flex-container {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 30px;
+      gap: 20px;
+    }
+    .results {
+      flex: 1;
+      font-size: 16px;
+      background: white;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      height: fit-content;
+    }
+    .results span {
+      font-weight: bold;
+      color: #333;
+    }
+    canvas {
+      flex: 2;
+      background: white;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Tableau des Produits</h2>
+
+<form id="formPrix">
+  <table id="produits" class="display">
+    <thead>
+      <tr>
+        <th>Désignation</th>
+        <th>Quantité</th>
+        <th>Prix</th>
+        <th>Montant</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="text" placeholder="Produit"></td>
+        <td><input type="number" value="0" min="0"></td>
+        <td><input type="number" value="0" min="0"></td>
+        <td></td>
+        <td><button type="button" onclick="supprimerLigne(this)">🗑️</button></td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td>Total</td>
+        <td id="totalQte">0</td>
+        <td></td>
+        <td id="totalMontant">0</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <button type="button" onclick="ajouterLigne()">➕ Ajouter un produit</button>
+  <button type="button" onclick="calculer()">🧮 Calculer</button>
+  <button type="button" onclick="resetForm()">🔄 Réinitialiser</button>
+</form>
+
+<div class="flex-container">
+  <div class="results">
+    Prix moyen : <span id="moyen">-</span><br><br>
+    Prix minimal : <span id="min">-</span><br><br>
+    Prix maximal : <span id="max">-</span>
+  </div>
+  <canvas id="graphique" height="300"></canvas>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let chart;
+
+function calculer() {
+  const rows = $('#produits tbody tr');
+  let montants = [];
+  let prixList = [];
+  let totalMontant = 0;
+  let totalQuantite = 0;
+  let labels = [];
+
+  rows.each(function () {
+    const designation = $(this).find('td:eq(0) input').val().trim() || 'Sans nom';
+    const qte = parseFloat($(this).find('td:eq(1) input').val()) || 0;
+    const prix = parseFloat($(this).find('td:eq(2) input').val()) || 0;
+    const montant = qte * prix;
+
+    $(this).find('td:eq(3)').text(montant.toFixed(2));
+    prixList.push(prix);
+    montants.push(montant);
+    totalMontant += montant;
+    totalQuantite += qte;
+    labels.push(designation);
+  });
+
+  $('#totalQte').text(totalQuantite);
+  $('#totalMontant').text(totalMontant.toFixed(2));
+
+  const prixFiltres = prixList.filter(p => p > 0);
+  const prixMoyen = prixFiltres.length ? (prixFiltres.reduce((a, b) => a + b, 0) / prixFiltres.length) : 0;
+  $('#moyen').text(prixMoyen.toFixed(2));
+  $('#min').text(Math.min(...prixFiltres));
+  $('#max').text(Math.max(...prixFiltres));
+
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('graphique').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Montant (Ar)',
+        data: montants,
+        backgroundColor: 'rgba(0, 123, 255, 0.6)',
+        borderColor: '#007BFF',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+function ajouterLigne() {
+  const ligne = `
+    <tr>
+      <td><input type="text" placeholder="Produit"></td>
+      <td><input type="number" value="0" min="0"></td>
+      <td><input type="number" value="0" min="0"></td>
+      <td></td>
+      <td><button type="button" onclick="supprimerLigne(this)">🗑️</button></td>
+    </tr>
+  `;
+  $('#produits tbody').append(ligne);
+}
+
+function supprimerLigne(btn) {
+  $(btn).closest('tr').remove();
+}
+
+function resetForm() {
+  $('#produits tbody').html(`
+    <tr>
+      <td><input type="text" placeholder="Produit"></td>
+      <td><input type="number" value="0" min="0"></td>
+      <td><input type="number" value="0" min="0"></td>
+      <td></td>
+      <td><button type="button" onclick="supprimerLigne(this)">🗑️</button></td>
+    </tr>
+  `);
+
+  $('#totalQte').text('0');
+  $('#totalMontant').text('0');
+  $('#moyen').text('-');
+  $('#min').text('-');
+  $('#max').text('-');
+
+  if (chart) {
+    chart.destroy();
+    chart = null;
+  }
+}
+
+$(document).ready(function () {
+  $('#produits').DataTable({
+    paging: false,
+    searching: false,
+    info: false,
+    ordering: false,
+    language: {
+      url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/fr-FR.json"
+    }
+  });
+});
+</script>
+
+</body>
+</html>
